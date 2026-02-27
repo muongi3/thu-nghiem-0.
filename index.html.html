@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Survival Island: Low Poly Royale</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* UI Overlay */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        
+        /* HUD */
+        .hud-panel { position: absolute; pointer-events: none; text-shadow: 1px 1px 2px black; color: white; font-weight: bold; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(0, 255, 0, 0.8); border: 1px solid black; transform: translate(-50%, -50%); border-radius: 50%; }
+        #health-bar-container { bottom: 20px; left: 20px; width: 300px; height: 25px; background: rgba(0,0,0,0.5); border: 2px solid #fff; }
+        #health-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff3333, #ff6666); transition: width 0.2s; }
+        #armor-bar-container { bottom: 55px; left: 20px; width: 200px; height: 15px; background: rgba(0,0,0,0.5); border: 1px solid #aaa; }
+        #armor-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #3366ff, #6699ff); transition: width 0.2s; }
+        #ammo-display { bottom: 20px; right: 20px; font-size: 52px; text-align: right; }
+        #weapon-name { font-size: 16px; color: #ccc; }
+        #stats-display { top: 20px; right: 20px; text-align: right; font-size: 30px; }
+        #zone-timer { top: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; color: #fff; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 5px; }
+        #zone-warning { top: 60px; left: 50%; transform: translateX(-50%); font-size: 26px; color: #ff3333; display: none; animation: blink 1s infinite; }
+        #interaction-msg { top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: yellow; display: none; }
+        #kill-feed { top: 100px; left: 20px; font-size: 14px; color: #ffcc00; display: flex; flex-direction: column; gap: 5px; }
+        #pickup-msg { bottom: 120px; left: 50%; transform: translateX(-50%); font-size: 30px; color: #00ff00; font-weight: bold; opacity: 0; transition: opacity 0.5s; text-shadow: 0 0 5px black; }
+        
+        /* New Fun UI Elements */
+        #streak-msg { 
+            top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0); 
+            font-size: 48px; color: #ff00ff; font-weight: 900; 
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #fff;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            text-align: center;
+        }
+
+        #minimap-container { top: 20px; left: 20px; width: 150px; height: 150px; border: 2px solid white; background: rgba(0,0,0,0.5); border-radius: 50%; overflow: hidden; }
+        #minimap { width: 100%; height: 100%; }
+        
+        /* Hurt/Hit Feedback */
+        #damage-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 0 0 rgba(255,0,0,0); transition: box-shadow 0.1s; pointer-events: none; }
+        #hit-marker { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; pointer-events: none; opacity: 0; transition: opacity 0.1s; }
+        
+        /* Menus */
+        .menu-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1a2a6c, #f89808,    #ff0000); display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; }
+        .menu-title { font-size: 100px; color: rgb(255, 0, 0); margin-bottom: 20px; text-transform: uppercase; text-shadow: 4px 4px 0px #000; font-style: italic; }
+        .menu-btn { padding: 15px 40px; margin: 10px; font-size: 44px; background: #ff7300; border: none; cursor: pointer; transform: skew(-10deg); transition: transform 0.1s, background 0.1s; font-weight: bold; border-left: 5px solid #333; }
+        .menu-btn:hover { background: #eee; transform: skew(-10deg) scale(1.05); }
+        .hidden { display: none !important; }
+        /* Reward Wheel */
+        #wheel-container { position: relative; width: 260px; height: 260px; margin: 20px 0; }
+
+        #wheel { width: 100%; height: 100%; border-radius: 50%; border: 8px solid #fff;
+            background: conic-gradient(    #ff0000 0deg 72deg,    #ffff00 72deg 144deg,    #00ff00 144deg 216deg,    #00ffff 216deg 288deg,    #ff8800 288deg 360deg
+);
+            transition: transform 20s cubic-bezier(0.05, 0.9, 0.2, 1);
+        }
+        #wheel-pointer { position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 30px solid red;
+        }
+        /* chữ cháy */
+        .menu-title { animation: fireGlow 1s infinite alternate; }
+        #open-reward-btn { margin-top: 20px; background: linear-gradient(135deg, #ff9800, #ff5722);
+            color: white; font-weight: bold; text-shadow: 0 0 8px rgba(255,200,0,0.8);
+        }
+        #wheel-layout { display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 20px; }
+        /* bảng chú thích */
+        #reward-legend { display: flex; flex-direction: column; gap: 12px; }
+
+        .legend-item { display: flex; align-items: center; gap: 10px; font-weight: bold; color: white; }
+
+        .legend-color { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; }
+
+        /* màu tương ứng */
+        .red { background: red; } .yellow { background: yellow; } .cyan { background: cyan; }
+        .orange { background: orange; } .green { background: limegreen; }
+        #reward-result, #reward-play-again { display: none !important; }
+        #reward-footer-left { position: fixed; bottom: 10px; left: 10px; font-size: 18px; font-weight: bold;
+            text-align: center; line-height: 1.3; color: rgba(255,255,255,0.7);
+            text-shadow: 1px 1px 2px #000; pointer-events: none; z-index: 9999;
+        }
+
+        .menu-guide {
+    color: white;
+    margin-top: 25px;
+    text-align: center;
+    font-size: 25px;      /* 👈 chỉnh to/nhỏ */
+    line-height: 1.6;
+}
+
+.menu-update {
+    color: rgb(94, 255, 0);
+    margin-top: 25px;
+    text-align: center;
+    font-size: 20px;      /* 👈 update cho nổi hơn */
+    font-weight: bold;
+}
+        /* OIIA CAT */
+    #hakariphonk-cat {
+    position: fixed;
+    left: 0;
+    top: 50%;
+
+    width: 300px;
+    pointer-events: none;
+    display: none;
+
+    animation:
+        oiiaRunFlip 2s linear infinite alternate,
+        oiiaBounce 0.3s ease-in-out infinite;
+}
+
+#click-anywhere {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 999999;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+}
+.continue-text {
+    position: fixed;
+    bottom: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px #000;
+    z-index: 50;
+
+    pointer-events: none; /*QUAN TRỌNG: KHÔNG CHẶN GAME */
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.hidden {
+    display: none;
+}
+:root {
+    --run-left: -150px;
+    --run-right: 90vw;
+}
+/* chạy trái ↔ phải + lật ngang */
+@keyframes oiiaRunFlip {
+    0% {
+        transform: translateX(var(--run-left)) scaleX(2);
+    }
+
+    24.99% {
+        transform: translateX(var(--run-right)) scaleX(2);
+    }
+
+    25% {
+        transform: translateX(var(--run-right)) scaleX(-2);
+    }
+
+    49.99% {
+        transform: translateX(var(--run-left)) scaleX(-2);
+    }
+
+    50% {
+        transform: translateX(var(--run-left)) scaleX(2);
+    }
+
+    74.99% {
+        transform: translateX(var(--run-right)) scaleX(2);
+    }
+
+    75% {
+        transform: translateX(var(--run-right)) scaleX(-2);
+    }
+
+    100% {
+        transform: translateX(var(--run-left)) scaleX(-2);
+    }
+}
+
+/* nhún nhẹ */
+@keyframes oiiaBounce {
+    0%   { margin-top: 0; }
+    50%  { margin-top: -100px; }
+    100% { margin-top: 0; }
+}
+
+@keyframes fireGlow {
+    from { text-shadow: 0 0 10px red, 0 0 20px orange; }
+    to   { text-shadow: 0 0 20px yellow, 0 0 40px red; }
+}
+        
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- WebGL Canvas -->
+    <canvas id="glcanvas"></canvas>
+
+    <!-- Damage Overlay -->
+    <div id="damage-overlay"></div>
+    
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <img id="hit-marker" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MCA1MCI+PHBhdGggZD0iTTAgMEw1MCA1ME01MCAwTDAgNTAiIHN0cm9rZT0icmVkIiBzdHJva2Utd2lkdGg9IjQiLz48L3N2Zz4=" width="20">
+
+        <div id="health-bar-container" class="hud-panel"><div id="health-fill"></div></div>
+        <div id="armor-bar-container" class="hud-panel"><div id="armor-fill"></div></div>
+        
+        <div id="continue-text" class="continue-text hidden">
+            👆 BẤM CHUỘT ĐỂ TIẾP TỤC 👆
+        </div>
+
+        <div id="ammo-display" class="hud-panel">
+            <span id="ammo-current">30</span> / <span id="ammo-reserve">90</span>
+            <div id="weapon-name">ASSAULT RIFLE</div>
+        </div>
+
+        <div id="stats-display" class="hud-panel">
+            <div>ALIVE: <span id="alive-count" style="color:#ffcc00">50</span></div>
+            <div>KILLS: <span id="kill-count">0</span></div>
+        </div>
+
+        <div id="zone-timer" class="hud-panel">ZONE: <span id="time-val">00:00</span></div>
+        <div id="zone-warning" class="hud-panel">WARNING: CHẠY LẸ BO ĐỐT CHẾT GIỜ!!</div>
+        <div id="interaction-msg" class="hud-panel">NHẤN [E] ĐỂ LOOT</div>
+        <div id="pickup-msg" class="hud-panel">Picked up Item</div>
+        <div id="kill-feed" class="hud-panel"></div>
+        
+        <!-- Fun UI -->
+        <div id="streak-msg" class="hud-panel">DOUBLE KILL!</div>
+
+        <div id="minimap-container" class="hud-panel">
+            <canvas id="minimap"></canvas>
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-screen">
+        <h1 class="menu-title">BẢN THỬ NGHIỆM 0.4</h1>
+        <button class="menu-btn" onclick="startGame()">🔥🔥 CHÁY LÊN ĐÊ AE ƠI 🔥🔥</button>
+        <div class="menu-guide">
+    HƯỚNG ĐẪN<br>
+    WASD: DI CHUYỂN | SHIFT: cHẠY MUỐN TỤT QUẦN | SPACE: NHẢY ĐI NHẢY <br>
+    | R: NẠP ĐẠN | E: NHẶT SHIT VÀNG | 1/2/3: VŨ KHÍ<br>           
+</div>
+
+<div class="menu-update">
+    NEW UPDATE:<br>
+    MẶT ĐẤT, CỎ <br>
+    VÀ VÒNG QUAY Ở CUỐI TRÒ CHƠI!!<br>
+    KHI WIN CÓ HÀNG CHỜ
+</div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="menu-screen hidden" style="background: rgba(0,0,0,0.7);">
+        <h1 class="menu-title">PAUSED</h1>
+        <button class="menu-btn" onclick="resumeGame()">RESUME</button>
+        <button class="menu-btn" onclick="location.reload()">MAIN MENU</button>
+    </div>
+
+    <!-- Game Over Screen -->
+<div id="click-anywhere"></div>
+    <div id="game-over-screen" class="menu-screen hidden">
+        <h1 class="menu-title" id="end-title">VICTORY!!!!</h1>
+        <h2 style="color:white" id="end-stats">KILLS: 5</h2>
+        <button id="open-reward-btn" class="menu-btn hidden"
+        onclick="openReward()">
+        🎁 QUAY THƯỞNG 🎁
+    </button>
+        <button id="play-again-btn" class="menu-btn"
+        onclick="location.reload()">
+    PLAY AGAIN
+</button>
+    </div>
+    <!-- Reward Wheel Screen -->
+    <div id="reward-screen" class="menu-screen hidden">
+        <h1 class="menu-title">🎁 QUAY TRÚNG THƯỞNG 🎁</h1>
+
+        <div id="wheel-layout">
+    <div id="wheel-container">
+        <div id="wheel"></div>
+        <div id="wheel-pointer"></div>
+    </div>
+    <!-- 👇 bảng chú thích bên PHẢI vòng -->
+    <div id="reward-legend">
+        <div class="legend-item">
+            <span class="legend-color red"></span>
+            <span>CHÚC U MAY MẮN CHO LẦN SAU :PP</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color yellow"></span>
+            <span>LÌ XÌ 15K</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color cyan"></span>
+            <span>LÌ XÌ 5K</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color orange"></span>
+            <span>LÌ XÌ 10K</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color green"></span>
+            <span>LÌ XÌ cho 20K nè</span>
+        </div>
+    </div>
+    <div id="reward-footer-left">
+    cảnh báo:<br>quay dc gì phải chụp <br>nhen tránh khai gian XD.
+</div>
+</div>
+
+        <button class="menu-btn" onclick="spinWheel()">QUAY LIỀN</button>
+        <h2 id="reward-result" style="color:white;margin-top:20px"></h2>
+
+        <button class="menu-btn" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+<script>
+
+    let canClickContinue = false;
+
+/**
+ * 1. MATH & UTILS
+ * Minimal implementation of Vector3 and Matrix4 (Row-major for GLSL compatibility)
+ */
+const V3 = {
+    create: (x=0,y=0,z=0) => ({x,y,z}),
+    add: (a, b) => ({x:a.x+b.x, y:a.y+b.y, z:a.z+b.z}),
+    sub: (a, b) => ({x:a.x-b.x, y:a.y-b.y, z:a.z-b.z}),
+    mul: (a, s) => ({x:a.x*s, y:a.y*s, z:a.z*s}),
+    len: (a) => Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z),
+    norm: (a) => { let l = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z); return l > 0 ? {x:a.x/l, y:a.y/l, z:a.z/l} : {x:0,y:0,z:0}; },
+    dot: (a, b) => a.x*b.x + a.y*b.y + a.z*b.z,
+    cross: (a, b) => ({x: a.y*b.z - a.z*b.y, y: a.z*b.x - a.x*b.z, z: a.x*b.y - a.y*b.x}),
+    dist: (a, b) => Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2),
+    clone: (a) => ({x:a.x, y:a.y, z:a.z})
+};
+
+const M4 = {
+    identity: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+    perspective: (fovy, aspect, near, far) => {
+        const f = 1.0 / Math.tan(fovy / 2);
+        const nf = 1 / (near - far);
+        return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0]);
+    },
+    lookAt: (eye, center, up) => {
+        const z = V3.norm(V3.sub(eye, center));
+        const x = V3.norm(V3.cross(up, z));
+        const y = V3.cross(z, x);
+        return new Float32Array([
+            x.x, y.x, z.x, 0,
+            x.y, y.y, z.y, 0,
+            x.z, y.z, z.z, 0,
+            -V3.dot(x,eye), -V3.dot(y,eye), -V3.dot(z,eye), 1
+        ]);
+    },
+    multiply: (a, b) => {
+        const out = new Float32Array(16);
+        for(let r=0; r<4; ++r) for(let c=0; c<4; ++c) {
+            let sum = 0; for(let k=0; k<4; ++k) sum += a[k*4+r] * b[c*4+k];
+            out[c*4+r] = sum;
+        }
+        return out;
+    },
+    translation: (x, y, z) => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]),
+    scaling: (x, y, z) => new Float32Array([x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1]),
+    rotationY: (rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);
+    },
+    rotationX: (rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]);
+    }
+};
+
+/**
+ * 2. WEBGL ENGINE (Shader, Procedural Meshes, Texture)
+ */
+const gl = document.getElementById('glcanvas').getContext('webgl2');
+if(!gl) alert("WebGL2 required!");
+
+// --- SHADERS ---
+const VS_SOURCE = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNorm;
+layout(location=2) in vec3 aColor;
+layout(location=3) in mat4 aInstMod; // Instance Matrix
+
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform mat4 uModel;
+uniform bool uInstanced;
+
+out vec3 vNorm;
+out vec3 vPos;
+out vec3 vColor;
+out float vDist;
+
+void main() {
+    mat4 model = uInstanced ? aInstMod : uModel;
+    vec4 worldPos = model * vec4(aPos, 1.0);
+    vPos = worldPos.xyz;
+    vNorm = mat3(model) * aNorm;
+    vColor = aColor;
+    gl_Position = uProj * uView * worldPos;
+    vDist = gl_Position.w;
+}`;
+
+const FS_SOURCE = `#version 300 es
+precision highp float;
+in vec3 vNorm;
+in vec3 vPos;
+in vec3 vColor;
+in float vDist;
+
+uniform vec3 uCamPos;
+uniform vec3 uSunDir;
+uniform vec3 uFogColor;
+
+out vec4 outColor;
+
+void main() {
+    vec3 N = normalize(vNorm);
+    vec3 L = normalize(uSunDir);
+    vec3 V = normalize(uCamPos - vPos);
+    
+    // Toon shading ramp
+    float diff = dot(N, L);
+    float light = smoothstep(-0.2, 0.2, diff) * 0.7 + 0.3; // Soft toon
+    
+    // Specular
+    vec3 H = normalize(L + V);
+    float spec = pow(max(dot(N, H), 0.0), 32.0) * 0.35;
+    if(diff < 0.0) spec = 0.0;
+    
+    // Rim light
+    float rim = 1.0 - max(dot(V, N), 0.0);
+    rim = smoothstep(0.6, 1.0, rim) * 0.25;
+    
+    vec3 finalColor = vColor * light + vec3(spec) + vec3(rim);
+    
+    // Fog (Exponential)
+    float fogDensity = 0.03;
+    float fogFactor = 1.0 - exp(-vDist * fogDensity);
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+    
+    outColor = vec4(mix(finalColor, uFogColor, fogFactor), 1.0);
+}`;
+
+function createShader(src, type) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+    return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, createShader(VS_SOURCE, gl.VERTEX_SHADER));
+gl.attachShader(prog, createShader(FS_SOURCE, gl.FRAGMENT_SHADER));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
+
+// Uniform locations
+const locs = {
+    proj: gl.getUniformLocation(prog, "uProj"),
+    view: gl.getUniformLocation(prog, "uView"),
+    model: gl.getUniformLocation(prog, "uModel"),
+    camPos: gl.getUniformLocation(prog, "uCamPos"),
+    sunDir: gl.getUniformLocation(prog, "uSunDir"),
+    fogColor: gl.getUniformLocation(prog, "uFogColor"),
+    instanced: gl.getUniformLocation(prog, "uInstanced"),
+};
+
+// --- GEOMETRY GENERATORS ---
+function createMesh(verts, norms, cols) {
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    
+    // VBOs
+    [[verts, 0, 3], [norms, 1, 3], [cols, 2, 3]].forEach(([data, loc, size]) => {
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(loc);
+    });
+
+    return { vao, count: verts.length / 3 };
+}
+
+// Procedural Cube
+function getCube(color=[1,1,1], sx=1, sy=1, sz=1, oy=0) {
+    let v=[], n=[], c=[];
+    const face = (ax, ay, az, nx, ny, nz) => {
+        for(let i=0; i<6; i++) {
+            v.push(ax[i]*sx, ay[i]*sy+oy, az[i]*sz);
+            n.push(nx, ny, nz);
+            c.push(...color);
+        }
+    };
+    // Front, Back, Top, Bottom, Right, Left faces (simplified for space)
+    // Just producing raw triangles
+    const p = [-0.5, 0.5];
+    const q = [-0.5, 0.5];
+    // This is a simplified generator, ideally use indexed drawing, but raw arrays are fine for low poly
+    // Manually push 6 faces...
+    const faces = [
+        [0,0,1, 0,0,1], [0,0,-1, 0,0,-1], [0,1,0, 0,1,0], [0,-1,0, 0,-1,0], [1,0,0, 1,0,0], [-1,0,0, -1,0,0]
+    ];
+    // Helper to construct box geometry
+    let P = [[-0.5,-0.5,0.5],[0.5,-0.5,0.5],[0.5,0.5,0.5],[-0.5,0.5,0.5], // Front
+             [-0.5,-0.5,-0.5],[0.5,-0.5,-0.5],[0.5,0.5,-0.5],[-0.5,0.5,-0.5]]; // Back
+    let idxs = [
+        0,1,2, 0,2,3, // Front
+        5,4,7, 5,7,6, // Back
+        3,2,6, 3,6,7, // Top
+        4,5,1, 4,1,0, // Bottom
+        1,5,6, 1,6,2, // Right
+        4,0,3, 4,3,7  // Left
+    ];
+    let normals = [
+        [0,0,1], [0,0,-1], [0,1,0], [0,-1,0], [1,0,0], [-1,0,0]
+    ];
+    
+    for(let i=0; i<idxs.length; i++) {
+        let pt = P[idxs[i]];
+        v.push(pt[0]*sx, pt[1]*sy+oy, pt[2]*sz);
+        let nm = normals[Math.floor(i/6)];
+        n.push(...nm);
+        c.push(...color);
+    }
+    return {v, n, c};
+}
+
+// Procedural Tree (Cylinder trunk + Cone leaves)
+function genTreeMesh() {
+    let V=[], N=[], C=[];
+    const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
+    
+    push(getCube([0.4, 0.25, 0.1], 0.5, 2, 0.5, 1)); // Trunk
+    push(getCube([0.1, 0.5, 0.1], 2.5, 2, 2.5, 2.5)); // Leaves Bottom
+    push(getCube([0.2, 0.6, 0.2], 1.8, 2, 1.8, 4.0)); // Leaves Mid
+    
+    return createMesh(V, N, C);
+}
+
+// Procedural House (Cube Body + Prism Roof)
+function genHouseMesh() {
+    let V=[], N=[], C=[];
+    const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
+    
+    // Body (White)
+    push(getCube([0.9,0.9,0.9], 5, 4, 5, 2));
+    
+    // Roof (Red - approximated with scaled cube rotated or just stacked boxes for low poly look)
+    // Making a gable roof manually with triangles would be better, but stacking tapering boxes works for low poly style
+    push(getCube([0.7,0.2,0.1], 5.2, 0.5, 5.2, 4.25));
+    push(getCube([0.7,0.2,0.1], 4.0, 0.5, 4.0, 4.75));
+    push(getCube([0.7,0.2,0.1], 2.0, 0.5, 2.0, 5.25));
+
+    // Door
+    push(getCube([0.3,0.2,0.1], 1.2, 2.5, 0.2, 1.25)); // Offset Z slightly in logic? No, just render
+    
+    return createMesh(V, N, C);
+}
+
+// Procedural Rock
+function genRockMesh() {
+    return createMesh(getCube([0.5,0.5,0.5], 1.5, 1, 1.5, 0.5).v, getCube([0.5,0.5,0.5], 1,1,1).n, getCube([0.5,0.5,0.5], 1,1,1).c);
+}
+
+// Character Mesh (Blocky parts)
+function genCharMesh(color) {
+    let V=[], N=[], C=[];
+    const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
+    // Torso
+    push(getCube(color, 0.6, 0.9, 0.3, 0.45+0.9)); 
+    // Head
+    push(getCube([0.9, 0.8, 0.7], 0.4, 0.4, 0.4, 0.45+0.9+0.6));
+    return createMesh(V, N, C);
+}
+
+// Loot Crate
+function genCrateMesh() {
+    return createMesh(getCube([1, 0.6, 0], 1, 1, 1, 0.5).v, getCube([1,1,1],1,1,1).n, getCube([1, 0.6, 0],1,1,1).c);
+}
+
+// NEW: Explosive Barrel Mesh
+function genBarrelMesh() {
+    // Red cylinder-ish (stacked octagons)
+    let V=[], N=[], C=[];
+    const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
+    push(getCube([0.8, 0.1, 0.1], 0.8, 1.2, 0.8, 0.6));
+    // Rim
+    push(getCube([0.3, 0.3, 0.3], 0.85, 0.1, 0.85, 1.15));
+    return createMesh(V, N, C);
+}
+// NEW: Grass Mesh (Billboard-style)
+function genGrassMesh() {
+    let V = [], N = [], C = [];
+
+    const blades = 20;      // chỉnh dài rộng cỏ
+    const h = 0.5;
+    const w = 1;        
+
+    const tipScale = 0.15; // càng nhỏ càng nhọn
+
+    const addPlane = (angle) => {
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+
+        const bx1 = -w * c, bz1 = -w * s;
+        const bx2 =  w * c, bz2 =  w * s;
+
+        // NGỌN (thu nhỏ → nhọn)
+        const tx1 = -w * tipScale * c, tz1 = -w * tipScale * s;
+        const tx2 =  w * tipScale * c, tz2 =  w * tipScale * s;
+
+        V.push(
+        // triangle 1
+        bx1, 0, bz1,
+        bx2, 0, bz2,
+        tx2, h, tz2,
+
+        // triangle 2
+        bx1, 0, bz1,
+        tx2, h, tz2,
+        tx1, h, tz1
+    );
+
+
+        // normal (đơn giản, đủ dùng)
+        for (let i = 0; i < 6; i++) {
+            N.push(0, 1, 0);
+        }
+
+        // màu: gốc đậm – ngọn nhạt
+        const g = 0.45 + Math.random() * 0.25;
+        for (let i = 0; i < 6; i++) {
+            C.push(0.12, g, 0.12);
+        }
+    };
+
+    // 🔥 QUAN TRỌNG: xoay đều 360°
+    for (let i = 0; i < blades; i++) {
+        const ang = (i / blades) * Math.PI * 1;
+        addPlane(ang);
+    }
+
+    return createMesh(V, N, C);
+}
+// NEW: Jump Pad Mesh
+function genJumpPadMesh() {
+    let V=[], N=[], C=[];
+    const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
+    // Base
+    push(getCube([0.2, 0.2, 0.2], 1.5, 0.2, 1.5, 0.1));
+    // Neon Pad
+    push(getCube([0.0, 1.0, 0.0], 1.3, 0.1, 1.3, 0.25));
+    return createMesh(V, N, C);
+}
+
+/**
+ * 3. WORLD & ASSETS
+ */
+const ASSETS = {};
+function initAssets() {
+    ASSETS.tree = genTreeMesh();
+    ASSETS.rock = genRockMesh();
+    ASSETS.house = genHouseMesh();
+    ASSETS.player = genCharMesh([0.2, 0.2, 0.8]); // Blue team
+    ASSETS.enemy = genCharMesh([0.8, 0.2, 0.2]); // Red team
+    ASSETS.crate = genCrateMesh();
+    ASSETS.ground = genTerrain();
+    ASSETS.barrel = genBarrelMesh(); // New
+    ASSETS.pad = genJumpPadMesh(); // New
+    ASSETS.grass = genGrassMesh(); // 🌱 Grass
+}
+
+// Terrain Generation
+const MAP_SIZE = 400;
+const MAP_RES = 64; // Low res grid
+function getHeight(x, z) {
+    // Simple noise function
+    const nx = x * 0.02;
+    const nz = z * 0.02;
+    let y = Math.sin(nx) * Math.cos(nz) * 8; // Big hills
+    y += Math.sin(nx*3 + nz) * 2; // Detail
+    // Bowl shape for island
+    const d = Math.sqrt(x*x + z*z) / (MAP_SIZE/2);
+    y -= d*d * 20; 
+    if (y < -10) y = -10; // Sea level
+    return y;
+}
+
+function genTerrain() {
+    let V=[], N=[], C=[];
+    const step = MAP_SIZE / MAP_RES;
+    const offset = -MAP_SIZE / 2;
+
+    for(let i=0; i<MAP_RES; i++) {
+        for(let j=0; j<MAP_RES; j++) {
+            const x = offset + i*step;
+            const z = offset + j*step;
+            const x1 = x+step;
+            const z1 = z+step;
+            
+            const y00 = getHeight(x,z);
+            const y10 = getHeight(x1,z);
+            const y01 = getHeight(x,z1);
+            const y11 = getHeight(x1,z1);
+            
+            // Color based on height
+            const getCol = (h) => h < -8 ? [0.9, 0.8, 0.5] : (h < 5 ? [0.3, 0.7, 0.3] : [0.5, 0.5, 0.5]);
+            const c = getCol(y00);
+
+            // Quad -> 2 Tris
+            // p1, p2, p3
+            // Quad -> 2 Tris (FIX winding CCW)
+V.push(
+    x,  y00, z,
+    x,  y01, z1,
+    x1, y10, z
+);
+
+V.push(
+    x1, y10, z,
+    x,  y01, z1,
+    x1, y11, z1
+);
+            
+            // Normals (Up-ish)
+            for(let k=0; k<6; k++) { N.push(0,1,0); C.push(...c); }
+        }
+    }
+    return createMesh(V, N, C);
+}
+
+/**
+ * 4. GAME STATE & ENTITIES
+ */
+const STATE = {
+    screen: 'menu', // menu, game, pause, end
+    lastTime: 0,
+    camera: { pos: V3.create(0, 10, 20), rot: {x:0, y:0} },
+    keys: {},
+    mouse: {x:0, y:0, down: false, rightDown: false},
+    projectiles: [],
+    particles: [],
+    loot: [],
+    bots: [],
+    barrels: [], // New
+    pads: [], // New
+    zone: { radius: 60, time: 60, phase: 0, damage: 0 },
+    player: {
+        pos: V3.create(0, 20, 0),
+        vel: V3.create(0,0,0),
+        hp: 400,
+        maxHp: 1000,
+        armor: 0,
+        grounded: false,
+        weaponIdx: 0,
+        recoil: 0,
+        kills: 0,
+        alive: true,
+        streak: 0, // New
+        lastKillTime: 0 // New
+    },
+    weapons: [
+        {name: "Pistol", damage: 40, rate: 300, spread: 0.05, range: 50, ammo: 12, res: 129, type: 0},
+        {name: "SMG", damage:20, rate: 100, spread: 0.1, range: 40, ammo: 30, res: 90, type: 1},
+        {name: "Sniper", damage: 80, rate: 1000, spread: 0.001, range: 200, ammo: 5, res: 10, type: 2}
+    ],
+    lastShot: 0,
+    shake: 0, // Screen shake magnitude
+    config: {
+        botCount: 20,
+        zoneSpeed: 5 // units per sec shrink
+    }
+    
+};
+// ================= OIIA CAT STATE =================
+const OIIA_CAT = {
+    spawned: false,
+    active: false
+};
+
+/**
+ * 5. GAME LOOP & LOGIC
+ */
+function startGame() {
+    // Reset State
+    STATE.screen = 'game';
+    STATE.player.hp = 1000;
+    STATE.player.maxHp = 1000;
+    STATE.player.armor = 0;
+    STATE.player.maxArmor = 500;
+    STATE.player.pos = V3.create(0, getHeight(0,0)+100, 0); // Drop from sky
+    STATE.player.vel = V3.create(0,-1,0);
+    STATE.player.alive = true;
+    STATE.player.kills = 0;
+    STATE.player.streak = 0;
+    STATE.zone = { radius: MAP_SIZE*0.7, time: 60, phase: 1, damage: 10 };
+    STATE.bots = [];
+    STATE.loot = [];
+    STATE.barrels = [];
+    STATE.pads = [];
+    STATE.projectiles = [];
+    STATE.particles = [];
+    STATE.shake = 0;
+    
+    // Spawn Bots
+    for(let i=0; i<STATE.config.botCount; i++) {
+        let x = (Math.random()-0.5)*MAP_SIZE*0.8;
+        let z = (Math.random()-0.5)*MAP_SIZE*0.8;
+        STATE.bots.push({
+            
+            pos: V3.create(x, getHeight(x,z)+1, z),
+            hp: 200,
+            target: null,
+            state: 'roam',
+            nextMove: 0,
+            fireCD: 0,
+            id: i
+        });
+    }
+
+    // Spawn Loot / Environment
+    for(let i=0; i<100; i++) {
+         let x = (Math.random()-0.5)*MAP_SIZE*0.8;
+         let z = (Math.random()-0.5)*MAP_SIZE*0.8;
+         STATE.loot.push({pos: V3.create(x, getHeight(x,z)+0.5, z), type: Math.floor(Math.random()*5)}); // 0-2 guns, 3 hp, 4 armor
+    }
+
+    // Spawn Barrels (Fun!)
+    for(let i=0; i<20; i++) {
+         let x = (Math.random()-0.5)*MAP_SIZE*0.8;
+         let z = (Math.random()-0.5)*MAP_SIZE*0.8;
+         STATE.barrels.push({pos: V3.create(x, getHeight(x,z), z), hp: 20});
+    }
+
+    // Spawn Jump Pads (Cool!)
+    for(let i=0; i<40; i++) {
+         let x = (Math.random()-0.5)*MAP_SIZE*0.8;
+         let z = (Math.random()-0.5)*MAP_SIZE*0.8;
+         STATE.pads.push({pos: V3.create(x, getHeight(x,z), z)});
+    }
+
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('ui-layer').style.display = 'block';
+    
+    gl.canvas.requestPointerLock();
+    requestAnimationFrame(loop);
+}
+
+function update(dt) {
+
+    if(STATE.screen === 'pause') return;
+
+    // Decay Screen Shake
+    STATE.shake *= 0.9;
+    
+    // 1. Player Physics
+    const p = STATE.player;
+    const speed = STATE.keys['ShiftLeft'] ? 12 : 6;
+    let move = V3.create(0,0,0);
+    
+    if(STATE.keys['KeyW']) move.z -= 1;
+    if(STATE.keys['KeyS']) move.z += 1;
+    if(STATE.keys['KeyA']) move.x -= 1;
+    if(STATE.keys['KeyD']) move.x += 1;
+    
+    // Rotate move vector by camera yaw
+    if(V3.len(move) > 0) {
+        move = V3.norm(move);
+        const yaw = STATE.camera.rot.y;
+        const forward = V3.create(Math.sin(yaw), 0, -Math.cos(yaw));
+        const right = V3.create(Math.cos(yaw), 0, Math.sin(yaw));
+        
+        // Correct vector math for WSAD relative to cam
+        let finalMove = V3.create(0,0,0);
+        // Forward/Back
+        finalMove = V3.add(finalMove, V3.mul(forward, -move.z));
+        // Left/Right
+        finalMove = V3.add(finalMove, V3.mul(right, move.x)); // Fixed sign
+        
+        p.pos.x += finalMove.x * speed * dt;
+        p.pos.z += finalMove.z * speed * dt;
+    }
+    
+    // Gravity & Jump
+    p.vel.y -= 25 * dt; // Gravity
+    p.pos.y += p.vel.y * dt;
+    
+    const floorH = getHeight(p.pos.x, p.pos.z);
+    
+    // JUMP PAD LOGIC
+    let onPad = false;
+    for(let pad of STATE.pads) {
+        if(V3.dist(p.pos, pad.pos) < 3 && Math.abs(p.pos.y - pad.pos.y) < 2) {
+            p.vel.y = 30; // Super jump!
+            p.grounded = false;
+            onPad = true;
+            playAudio('jump'); // Reuse sound or new
+            break;
+        }
+    }
+
+    if(!onPad && p.pos.y < floorH + 1.5) {
+        p.pos.y = floorH + 1.5;
+        p.vel.y = 0;
+        p.grounded = true;
+    } else if (!onPad) {
+        p.grounded = false;
+    }
+    
+    if(STATE.keys['Space'] && p.grounded) {
+        p.vel.y = 10;
+        p.grounded = false;
+    }
+
+    // 2. Zone Logic
+    STATE.zone.time -= dt;
+    // Fix: Allow zone to shrink to 0
+    // Zone timer
+
+if (STATE.zone.time <= 0) {
+    STATE.zone.phase++;
+    STATE.zone.time = 60;       
+    STATE.zone.radius *= 0.7;     
+    STATE.zone.damage += 10;       
+}
+    const distToCenter = Math.sqrt(p.pos.x**2 + p.pos.z**2);
+    const inZone = distToCenter < STATE.zone.radius;
+    document.getElementById('zone-warning').style.display = inZone ? 'none' : 'block';
+    if(!inZone) {
+        takeDamage(p, STATE.zone.damage * dt);
+    }
+
+    // 3. Combat & Shooting
+    const now = performance.now();
+    const weapon = STATE.weapons[p.weaponIdx];
+    
+    if(STATE.mouse.down && now - STATE.lastShot > weapon.rate && weapon.ammo > 0) {
+        fireWeapon(p, STATE.camera.rot, weapon, true);
+        weapon.ammo--;
+        STATE.lastShot = now;
+        p.recoil = 0.1;
+    }
+    // Decay recoil
+    p.recoil *= 0.8;
+
+    // Weapon Switching & Reload
+    if(STATE.keys['Digit1']) p.weaponIdx = 0;
+    if(STATE.keys['Digit2']) p.weaponIdx = 1;
+    if(STATE.keys['Digit3']) p.weaponIdx = 2;
+    if(STATE.keys['KeyR'] && weapon.ammo < 30) {
+        // Simple instant reload for jam
+        let needed = 30 - weapon.ammo;
+        if(weapon.res >= needed) { weapon.res -= needed; weapon.ammo = 30; }
+        else { weapon.ammo += weapon.res; weapon.res = 0; }
+    }
+
+    // 4. Projectiles
+    STATE.projectiles.forEach((proj, i) => {
+        const step = V3.mul(proj.dir, 100 * dt);
+        const nextPos = V3.add(proj.pos, step);
+        
+        // Check Barrel Hits
+        STATE.barrels.forEach(b => {
+             if(b.hp > 0 && V3.dist(nextPos, V3.add(b.pos, V3.create(0,0.6,0))) < 2.5) {
+                 b.hp -= proj.dmg;
+                 playAudio('hit');
+                 showHitMarker();
+                 spawnParticles(nextPos, 5, [1, 0.5, 0]); // Spark
+                 proj.dead = true;
+                 if(b.hp <= 0) createExplosion(b.pos);
+             }
+        });
+
+        // Hit check Bots
+        if(proj.isPlayer) {
+            STATE.bots.forEach(bot => {
+                if(V3.dist(nextPos, bot.pos) < 1.5) {
+                    bot.hp -= proj.dmg;
+                    playAudio('hit');
+                    showHitMarker();
+                    spawnParticles(nextPos, 5, [1,0,0]);
+                    proj.dead = true;
+                }
+            });
+        } else {
+            // FIX: Bot hitting player
+            if(V3.dist(nextPos, V3.add(p.pos, V3.create(0,1,0))) < 1.0) {
+                takeDamage(p, proj.dmg);
+                playAudio('hit'); // Hit sound for player too
+                document.getElementById('damage-overlay').style.opacity = 0.8;
+                setTimeout(()=> document.getElementById('damage-overlay').style.opacity = 0, 100);
+                proj.dead = true;
+            }
+        }
+        
+        proj.pos = nextPos;
+        proj.life -= dt;
+        if(proj.life < 0) proj.dead = true;
+    });
+    STATE.projectiles = STATE.projectiles.filter(p => !p.dead);
+
+    // 5. Bots AI
+    STATE.bots.forEach(bot => {
+        if(bot.hp <= 0) return;
+        bot.fireCD -= dt;
+        
+        const dist = V3.dist(bot.pos, p.pos);
+        
+        // Zone damage
+        const bDistCenter = Math.sqrt(bot.pos.x**2 + bot.pos.z**2);
+        if(bDistCenter > STATE.zone.radius) bot.hp -= STATE.zone.damage * dt;
+
+        // Simple State Machine
+        if(dist < 50) {
+            // Chase/Shoot
+            const dir = V3.norm(V3.sub(p.pos, bot.pos));
+            bot.pos.x += dir.x * 4 * dt;
+            bot.pos.z += dir.z * 4 * dt;
+            
+            // Shoot logic
+            if (bot.fireCD <= 0) {
+    fireWeapon(
+        bot,
+        null,
+        STATE.weapons[0],
+        false,
+        V3.sub(p.pos, bot.pos)
+    );
+
+    // chỉnh tốc độ bắn ở đây
+    bot.fireCD = 0.5; // 0.5 giây / viên
+}
+        } else {
+            // Roam
+            bot.nextMove -= dt;
+            if(bot.nextMove <= 0) {
+                bot.targetDir = V3.create(Math.random()-0.5, 0, Math.random()-0.5);
+                bot.nextMove = 2 + Math.random()*3;
+            }
+            if(bot.targetDir) {
+                bot.pos.x += bot.targetDir.x * 3 * dt;
+                bot.pos.z += bot.targetDir.z * 3 * dt;
+            }
+        }
+        
+        // Gravity/Terrain
+        bot.pos.y = getHeight(bot.pos.x, bot.pos.z) + 1.5;
+    });
+    
+    // Clean dead bots & Update Stats
+    const prevCount = STATE.bots.length;
+    STATE.bots = STATE.bots.filter(b => b.hp > 0);
+
+    if (prevCount > 0 && STATE.bots.length === 0 && STATE.screen === 'game') {
+    showClickToContinue();
+}
+
+    // Remove exploded barrels
+    STATE.barrels = STATE.barrels.filter(b => b.hp > 0);
+
+    if(STATE.bots.length < prevCount) {
+        const killsMade = prevCount - STATE.bots.length;
+        p.kills += killsMade;
+        
+        // Streak Logic
+        const now = performance.now();
+        if(now - p.lastKillTime < 5000) { // 5 seconds window
+            p.streak += killsMade;
+        } else {
+            p.streak = killsMade;
+        }
+        p.lastKillTime = now;
+
+        // Show Streak Text
+        const sm = document.getElementById('streak-msg');
+        if(p.streak > 1) {
+            sm.innerText = p.streak === 2 ? "DOUBLE KILL!" : (p.streak === 3 ? "TRIPLE KILL!" : "RAMPAGE!");
+            sm.style.transform = "translate(-50%, -50%) scale(1.5)";
+            setTimeout(() => sm.style.transform = "translate(-50%, -50%) scale(0)", 1500);
+        }
+
+        const feed = document.getElementById('kill-feed');
+        feed.innerHTML += `<div>Enemy eliminated</div>`;
+        setTimeout(()=>feed.removeChild(feed.firstChild), 3000);
+        
+        // Confetti!
+        spawnParticles(p.pos, 20, [Math.random(), Math.random(), Math.random()]);
+    }
+
+    // 6. Loot Interaction
+    let closeLoot = null;
+    STATE.loot.forEach(l => {
+        if(V3.dist(p.pos, l.pos) < 2) closeLoot = l;
+    });
+    const msg = document.getElementById('interaction-msg');
+    if(closeLoot) {
+        msg.style.display = 'block';
+        if(STATE.keys['KeyE']) {
+            // Pickup
+            playAudio('pickup');
+            let pickedName = "";
+            if(closeLoot.type === 3) { p.hp = Math.min(p.maxHp, p.hp+100); pickedName="ĂN NẤM NÈ NHÓC"; }
+            else if(closeLoot.type === 4) { p.armor = Math.min(500, p.armor+200); pickedName="GIÁP 4 VIP PRO"; }
+            else {
+                // Add ammo to gun
+                STATE.weapons[closeLoot.type].res += 30;
+                pickedName = STATE.weapons[closeLoot.type].name;
+            }
+            // Show pickup text
+            const pMsg = document.getElementById('pickup-msg');
+            pMsg.innerText = "CHO MÀY " + pickedName;
+            pMsg.style.opacity = 1;
+            setTimeout(() => pMsg.style.opacity = 0, 2000);
+
+            STATE.loot = STATE.loot.filter(l => l !== closeLoot);
+            STATE.keys['KeyE'] = false; // Debounce
+        }
+    } else {
+        msg.style.display = 'none';
+    }
+
+    // 7. Check Game Over
+    // 7. Check Game Over
+if (STATE.player.hp <= 0) {
+    endGame(false);
+}
+
+// BOT DIE HẾT → GỌI OIIA CAT
+if (STATE.bots.length === 0 && !OIIA_CAT.spawned) {
+    STATE.screen = "end";
+    showClickAnywhere(10000);
+    spawnOiiaCat();
+}
+}
+
+function createExplosion(pos) {
+    STATE.shake = 0.5; // Screen shake
+    playAudio('shoot'); // Ideally explosion sound
+    spawnParticles(pos, 30, [1, 0.5, 0]); // Fire particles
+    
+    // Damage Check
+    const range = 12;
+    // Check Player
+    if(V3.dist(pos, STATE.player.pos) < range) {
+        takeDamage(STATE.player, 200);
+    }
+    // Check Bots
+    STATE.bots.forEach(b => {
+        if(V3.dist(pos, b.pos) < range) {
+            b.hp -= 200; // Instakill most bots
+        }
+    });
+}
+
+function fireWeapon(shooter, rot, weapon, isPlayer, dirOverride) {
+    let dir;
+    if(isPlayer) {
+        const yaw = rot.y;
+        const pitch = rot.x;
+        // Camera direction
+        dir = V3.create(
+            Math.sin(yaw) * Math.cos(pitch),
+            Math.sin(pitch),
+            -Math.cos(yaw) * Math.cos(pitch)
+        );
+    } else {
+        dir = V3.norm(dirOverride);
+    }
+    
+    // Spread
+    dir.x += (Math.random()-0.5)*weapon.spread;
+    dir.y += (Math.random()-0.5)*weapon.spread;
+    dir.z += (Math.random()-0.5)*weapon.spread;
+    dir = V3.norm(dir);
+
+    STATE.projectiles.push({
+        pos: V3.add(shooter.pos, V3.create(0, 0.5, 0)),
+        dir: dir,
+        dmg: weapon.damage,
+        life: 2.0,
+        isPlayer: isPlayer,
+        dead: false
+    });
+    
+    playAudio('shoot');
+}
+
+function takeDamage(p, amt) {
+    if(p.armor > 0) {
+        const armDmg = amt * 0.7;
+        p.armor -= armDmg;
+        p.hp -= amt * 0.3;
+        if(p.armor < 0) { p.hp += p.armor; p.armor = 0; }
+    } else {
+        p.hp -= amt;
+    }
+    document.getElementById('damage-overlay').style.boxShadow = `inset 0 0 50px rgba(255,0,0,${1 - p.hp/100})`;
+}
+
+function showHitMarker() {
+    const el = document.getElementById('hit-marker');
+    el.style.opacity = 1;
+    setTimeout(() => el.style.opacity = 0, 100);
+}
+
+function spawnParticles(pos, count, color) {
+    // Simple conceptual particles, in a full game we'd render these billboards
+    // Here we just use them for logic placeholders or could add simple points
+}
+
+function endGame(win) {
+    STATE.screen = 'end';
+    document.exitPointerLock();
+    document.getElementById('ui-layer').style.display = 'none';
+
+    const gameOver = document.getElementById('game-over-screen');
+    const rewardBtn = document.getElementById('open-reward-btn');
+    const playAgainBtn = document.getElementById('play-again-btn');
+
+    gameOver.classList.remove('hidden');
+
+    if (win) {
+        // 🏆 THẮNG
+        document.getElementById('end-title').innerText = "VICTORY";
+        document.getElementById('end-title').style.color = "#ffd700";
+
+        rewardBtn.classList.remove('hidden');   // hiện QUAY THƯỞNG
+        playAgainBtn.classList.add('hidden');   // ❌ ẨN PLAY AGAIN
+    } else {
+        // ❌ THUA
+        document.getElementById('end-title').innerText =
+            "THUA RỒI AK CON GÀ HAHAHA";
+        document.getElementById('end-title').style.color = "#ff0000";
+
+        rewardBtn.classList.add('hidden');      // ẩn QUAY THƯỞNG
+        playAgainBtn.classList.remove('hidden'); // hiện PLAY AGAIN
+    }
+
+    document.getElementById('end-stats').innerText =
+        `Kills: ${STATE.player.kills}`;
+}
+function showClickToContinue() {
+    const txt = document.getElementById("continue-text");
+    txt.classList.remove("hidden");
+
+    function onClick() {
+        txt.classList.add("hidden");
+        window.removeEventListener("mousedown", onClick);
+        endGame(true); // 👉 lúc này MỚI vào màn victory
+    }
+
+    setTimeout(() => {
+        window.addEventListener("mousedown", onClick);
+    }, 10000);
+}
+let spun = false;
+
+const rewards = [
+  { text: "Lì xì 30K", color: "lime", weight: 0.1 },
+  { text: "Lì xì 20K", color: "magenta", weight: 10.9 },
+  { text: "Lì xì 10K", color: "orange", weight: 20 },
+  { text: "Lì xì 5K", color: "cyan", weight: 39 },
+  { text: "Chúc may mắn lần sau :PP", color: "yellow", weight: 30 }
+];
+
+function pickReward() {
+  const total = rewards.reduce((s, r) => s + r.weight, 0);
+  let rand = Math.random() * total;
+
+  for (let r of rewards) {
+    if (rand < r.weight) return r;
+    rand -= r.weight;
+  }
+}
+function openReward() {
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('reward-screen').classList.remove('hidden');
+}
+
+function spinWheel() {
+    if (spun) return;
+    spun = true;
+
+    const wheel = document.getElementById("wheel");
+    const resultText = document.getElementById("reward-result");
+    const playAgainBtn = document.getElementById("reward-play-again");
+
+    // random phần thưởng
+    const index = Math.floor(Math.random() * rewards.length);
+
+    // mỗi ô 60deg, quay cho đẹp
+    const degPerSlice = 360 / rewards.length;
+    const extraSpin = 360 * 20; // quay thêm cho đã
+    const finalDeg = extraSpin + (index * degPerSlice) + degPerSlice / 2;
+
+    wheel.style.transform = `rotate(${finalDeg}deg)`;
+
+    // sau khi quay xong
+    setTimeout(() => {
+        resultText.innerText = "🎉 " + rewards[index];
+        playAgainBtn.classList.remove("hidden"); // ✅ hiện PLAY AGAIN
+    }, 10000);
+}
+
+const GRASS_PATCHES = [];
+for (let i = 0; i < 200; i++) {
+    const x = Math.sin(i * 12.989) * MAP_SIZE * 0.45;
+    const z = Math.cos(i * 78.233) * MAP_SIZE * 0.45;
+    const y = getHeight(x, z);
+    const scale = 0.6 + Math.random() * 0.6;
+
+    GRASS_PATCHES.push({ x, y, z, scale });
+}
+
+/**
+ * 6. RENDERING
+ */
+function draw() {
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.clearColor(0.5, 0.7, 0.9, 1.0); // Sky color
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+
+    gl.cullFace(gl.BACK);
+gl.frontFace(gl.CCW);
+
+    gl.useProgram(prog);
+
+    // Camera Matrix
+    const p = STATE.player;
+    const aspect = gl.canvas.width / gl.canvas.height;
+    const proj = M4.perspective(1.2, aspect, 0.1, 1000);
+    
+    // FPS Camera logic
+    const yaw = STATE.camera.rot.y;
+    const pitch = STATE.camera.rot.x - p.recoil;
+    
+    // Camera is at Eye position (FPS) + Shake
+    const shakeX = (Math.random()-0.5) * STATE.shake;
+    const shakeY = (Math.random()-0.5) * STATE.shake;
+    
+    const eyeY = p.pos.y + 1.8; // Eye height
+    const eye = V3.create(p.pos.x + shakeX, eyeY + shakeY, p.pos.z);
+    
+    // Forward Vector
+    const forward = V3.create(
+        Math.sin(yaw) * Math.cos(pitch),
+        Math.sin(pitch),
+        -Math.cos(yaw) * Math.cos(pitch)
+    );
+    const center = V3.add(eye, forward);
+
+    const view = M4.lookAt(eye, center, V3.create(0,1,0));
+
+    gl.uniformMatrix4fv(locs.proj, false, proj);
+    gl.uniformMatrix4fv(locs.view, false, view);
+    gl.uniform3f(locs.camPos, eye.x, eye.y, eye.z);
+    gl.uniform3f(locs.sunDir, 0.5, 0.8, 0.3); // Sunlight direction
+    gl.uniform3f(locs.fogColor, 0.5, 0.7, 0.9);
+
+    // Draw Terrain
+    gl.uniform1i(locs.instanced, false);
+    gl.uniformMatrix4fv(locs.model, false, M4.identity());
+    gl.bindVertexArray(ASSETS.ground.vao);
+    gl.drawArrays(gl.TRIANGLES, 0, ASSETS.ground.count);
+
+    // Helper to draw mesh at pos
+    const drawMesh = (mesh, pos, scale=1, rotY=0) => {
+        let m = M4.translation(pos.x, pos.y, pos.z);
+        m = M4.multiply(m, M4.rotationY(rotY));
+        m = M4.multiply(m, M4.scaling(scale, scale, scale));
+        gl.uniformMatrix4fv(locs.model, false, m);
+        gl.bindVertexArray(mesh.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
+    };
+
+    // Draw Bots
+    STATE.bots.forEach(b => {
+        const dx = p.pos.x - b.pos.x;
+        const dz = p.pos.z - b.pos.z;
+        const ang = Math.atan2(dx, dz);
+        drawMesh(ASSETS.enemy, b.pos, 1, ang);
+    });
+    
+    // Draw Barrels (New)
+    STATE.barrels.forEach(b => {
+        drawMesh(ASSETS.barrel, b.pos, 3, 0);
+    });
+
+    // Draw Grass (Simple scatter)
+gl.disable(gl.CULL_FACE); // <<< QUAN TRỌNG: tắt cull cho cỏ
+
+gl.disable(gl.CULL_FACE);
+
+GRASS_PATCHES.forEach(g => {
+    drawMesh(
+        ASSETS.grass,
+        { x: g.x, y: g.y, z: g.z },
+        g.scale,
+        0
+    );
+});
+
+gl.enable(gl.CULL_FACE);
+
+gl.enable(gl.CULL_FACE); // <<< bật lại cho object khác
+
+    // Draw Pads (New)
+    STATE.pads.forEach(p => {
+        drawMesh(ASSETS.pad, p.pos, 2, 0);
+    });
+    
+    
+
+    // Draw Trees (Instancing would be better here but standard draw for simplicity of code structure)
+    // To keep FPS high on bad machines, only draw nearby trees or used fixed count
+    // NOTE: In a real implementation we would use ANGLE_instanced_arrays
+    const seed = 123;
+    for(let i=0; i<60; i++) {
+        const x = Math.sin(i*132.1)*MAP_SIZE*0.4;
+        const z = Math.cos(i*52.3)*MAP_SIZE*0.4;
+        const y = getHeight(x,z);
+        drawMesh(ASSETS.tree, {x,y,z}, 1.5 + Math.sin(i)*0.5, 0);
+    }
+
+    // Draw Houses
+    drawMesh(ASSETS.house, {x: 20, y: getHeight(20,20), z: 20}, 2, 0.5);
+    drawMesh(ASSETS.house, {x: -40, y: getHeight(-40,-50), z: -50}, 2, 2.0);
+
+    // Draw Loot
+    STATE.loot.forEach(l => {
+        let bob = Math.sin(performance.now()/200)*0.2;
+        drawMesh(ASSETS.crate, {x:l.pos.x, y:l.pos.y+bob, z:l.pos.z}, 0.5, performance.now()/1000);
+    });
+
+    // Draw Projectiles (Tracer)
+    STATE.projectiles.forEach(pr => {
+        drawMesh(ASSETS.crate, pr.pos, 0.1, 0); // Reuse crate mesh as bullet for now
+    });
+
+    // Render MiniMap (2D Canvas)
+    drawMinimap(p, STATE.bots);
+}
+
+function drawMinimap(p, bots) {
+    const ctx = document.getElementById('minimap').getContext('2d');
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    ctx.clearRect(0,0,w,h);
+    
+    // Draw Safe Zone
+    const scale = w / MAP_SIZE;
+    const cx = w/2;
+    const cy = h/2;
+    
+    ctx.beginPath();
+    ctx.arc(cx, cy, STATE.zone.radius * scale, 0, Math.PI*2);
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw Player
+    const px = cx + p.pos.x * scale;
+    const py = cy + p.pos.z * scale;
+    ctx.fillStyle = "#00ff00";
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill();
+
+    // Draw Bots (Cheat radar essentially, but standard for these simple games)
+    ctx.fillStyle = "red";
+    bots.forEach(b => {
+        const bx = cx + b.pos.x * scale;
+        const by = cy + b.pos.z * scale;
+        ctx.beginPath(); ctx.arc(bx, by, 2, 0, Math.PI*2); ctx.fill();
+    });
+}
+
+function updateHUD() {
+    const p = STATE.player;
+
+    const hpPercent = Math.max(0, (p.hp / p.maxHp) * 100);
+    const armorPercent = Math.max(0, (p.armor / p.maxArmor) * 100);
+
+    document.getElementById('health-fill').style.width = hpPercent + '%';
+    document.getElementById('armor-fill').style.width = armorPercent + '%';
+
+    document.getElementById('ammo-current').innerText =
+        STATE.weapons[p.weaponIdx].ammo;
+    document.getElementById('ammo-reserve').innerText =
+        STATE.weapons[p.weaponIdx].res;
+    document.getElementById('weapon-name').innerText =
+        STATE.weapons[p.weaponIdx].name.toUpperCase();
+    document.getElementById('alive-count').innerText =
+        STATE.bots.length + 1;
+    document.getElementById('kill-count').innerText =
+        p.kills;
+
+    let min = Math.floor(STATE.zone.time / 60);
+    let sec = Math.floor(STATE.zone.time % 60);
+    document.getElementById('time-val').innerText =
+        `${min}:${sec < 10 ? '0'+sec : sec}`;
+}
+/**
+ * 7. AUDIO & INPUT
+ */
+const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playAudio(type) {
+    if(AudioCtx.state === 'suspended') AudioCtx.resume();
+    const osc = AudioCtx.createOscillator();
+    const gain = AudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(AudioCtx.destination);
+    
+    const now = AudioCtx.currentTime;
+    if(type === 'shoot') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'hit') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1200, now);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.05);
+        osc.start(now); osc.stop(now + 0.05);
+    } else if (type === 'pickup') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'jump') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(300, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        osc.start(now); osc.stop(now + 0.2);
+    }
+}
+
+// Input Listeners
+window.addEventListener('keydown', e => {
+    STATE.keys[e.code] = true;
+    if(e.code === 'Escape') {
+        if(STATE.screen === 'game') {
+            document.exitPointerLock();
+            STATE.screen = 'pause';
+            document.getElementById('pause-menu').classList.remove('hidden');
+        } else if (STATE.screen === 'pause') {
+            resumeGame();
+        }
+    }
+    if(e.code.startsWith('Digit')) STATE.keys[e.code] = true;
+});
+window.addEventListener('keyup', e => STATE.keys[e.code] = false);
+
+window.addEventListener('mousedown', e => {
+    if(STATE.screen !== 'game') return;
+    STATE.mouse.down = true;
+});
+window.addEventListener('mouseup', e => STATE.mouse.down = false);
+
+window.addEventListener('mousemove', e => {
+    if(document.pointerLockElement === gl.canvas) {
+        // Fix: Inverted mouse look (swapped sign)
+        STATE.camera.rot.y += e.movementX * 0.002;
+        STATE.camera.rot.x -= e.movementY * 0.002;
+        STATE.camera.rot.x = Math.max(-1.5, Math.min(1.5, STATE.camera.rot.x));
+    }
+});
+
+function resumeGame() {
+    STATE.screen = 'game';
+    document.getElementById('pause-menu').classList.add('hidden');
+    gl.canvas.requestPointerLock();
+}
+
+/**
+ * 8. MAIN ENTRY
+ */
+// ================= OIIA CAT FUNCTIONS =================
+function spawnOiiaCat() {
+    OIIA_CAT.spawned = true;
+
+    const cat = document.getElementById("hakariphonk-cat");
+    const sound = document.getElementById("hakariphonk-sound");
+
+    cat.style.display = "block";
+
+    sound.currentTime = 0;
+    sound.play();
+}
+
+// ================= MAIN LOOP ================
+function loop(now) {
+    const dt = Math.min((now - STATE.lastTime) / 1000, 0.1);
+    STATE.lastTime = now;
+
+    update(dt);
+    draw();
+    updateHUD();
+
+    requestAnimationFrame(loop);
+}
+/* ===============================
+   CLICK ANYWHERE → VICTORY
+================================ */
+
+function showClickAnywhere(delay = 10000) {
+    setTimeout(() => {
+        const overlay = document.getElementById("click-anywhere");
+        const victory = document.getElementById("game-over-screen");
+        const continueText = document.getElementById("continue-text");
+
+        // 🛑 THOÁT POINTER LOCK
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+
+        overlay.style.display = "block";
+        continueText.style.display = "block";
+
+        overlay.onclick = () => {
+            overlay.style.display = "none";
+            overlay.onclick = null;
+
+            STATE.screen = "end";
+
+            victory.classList.remove("hidden");
+            document.getElementById("ui-layer").style.display = "none";
+
+            // hiện nút quay thưởng
+            document.getElementById("open-reward-btn").classList.remove("hidden");
+        };
+    }, delay);
+}
+// Init
+window.onload = () => {
+    gl.canvas.width = window.innerWidth;
+    gl.canvas.height = window.innerHeight;
+    initAssets();
+};
+window.onresize = () => {
+    gl.canvas.width = window.innerWidth;
+    gl.canvas.height = window.innerHeight;
+};
+
+</script>
+<!-- OIIA CAT -->
+    <img id="hakariphonk-cat" src="hakariphonk.png" alt="hakariphonk cat">
+    <audio id="hakariphonk-sound" src="hakariphonk.mp3" preload="auto"></audio>
+
+    <div id="click-anywhere"></div>
+</body>
+</html>
