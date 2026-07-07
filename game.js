@@ -34,7 +34,7 @@ window.STATE = {
     bossTriggered: false,
     isAiming: false,
     aimLerp: 0,
-    boss: { active: false, pos: V3.create(0, 0, 0), vel: V3.create(0, 0, 0), hp: window.GAME_CONFIG.boss.hp, maxHp: window.GAME_CONFIG.boss.hp, state: 'idle', skillCD: window.GAME_CONFIG.boss.skillCD, targetPos: null, shotCount: 0, skillIndex: 0, pillarSpots: [], armLift: 0, bodyY: 0, bodyRot: 0, fanMesh: null, hasHit: false },
+    boss: { active: false, pos: V3.create(0, 0, 0), vel: V3.create(0, 0, 0), hp: window.GAME_CONFIG.boss.hp, maxHp: window.GAME_CONFIG.boss.hp, state: 'idle', skillCD: window.GAME_CONFIG.boss.skillCD, targetPos: null, shotCount: 0, skillIndex: 0, pillarSpots: [], armLift: 0, bodyY: 0, bodyRot: 0, fanMesh: null, hasHit: false, deathTimer: 0 },
     startTime: 0,
     gameEnded: false,
     playerName: localStorage.getItem('savedPlayerName') || "Người chơi",
@@ -143,7 +143,7 @@ function applyGraphicsSettings() {
 }
 
 window.addEventListener('load', () => {
-    gl = document.getElementById('glcanvas').getContext('webgl2', { antialias: !isMobile, powerPreference: "high-performance" });
+    gl = document.getElementById('glcanvas').getContext('webgl2', { antialias: !isMobile, powerPreference: "high-performance", stencil: true });
     if (!gl) {
         console.log("❌ WebGL2 KHÔNG HỖ TRỢ!");
         alert("Thiết bị của bác không hỗ trợ WebGL2. Vui lòng dùng trình duyệt khác!");
@@ -423,7 +423,7 @@ function genTreeMesh() {
     // Tán lá 1 (Bottom layer - to và bè)
     push(getCube(leafCol1, 4.5, 1.2, 4.5, 0, 3.0, 0));
     push(getCube(leafCol2, 4.0, 1.0, 4.0, 0.5, 3.8, 0.5)); // Lệch nhẹ cho tự nhiên
-    
+
     // Tán lá 2 (Middle layer)
     push(getCube(leafCol2, 3.2, 1.5, 3.2, -0.3, 4.8, -0.3));
     push(getCube(leafCol3, 2.5, 1.2, 2.5, 0.2, 5.8, 0.2));
@@ -560,33 +560,37 @@ function genCharMesh(color, isHorror = false, isEnraged = false, isFinal = false
     const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
 
     if (isHorror) {
-        // --- BOT KINH DỊ HƠI ĐỎ (PALE RED CREEPER) ---
-        const paleRed = [0.88, 0.45, 0.45]; // Da quái vật có tông hơi đỏ
-        const blood = [0.5, 0.0, 0.0];      // Máu đỏ sẫm
-        const brightBlood = [0.8, 0.0, 0.0]; // Máu đỏ tươi
+        // --- MÀU SẮC THEO DẠNG ---
+        // Dạng 1: Da xám nhạt hơi hồng
+        // Dạng 2: Da đỏ nhạt (hồng đỏ)
+        // Dạng 3: Da đỏ đậm (máu me)
+        const skinCol = isFinal ? [0.7, 0.15, 0.15] : (isEnraged ? [0.9, 0.5, 0.5] : [0.88, 0.45, 0.45]);
+        const blood = isFinal ? [0.6, 0.0, 0.0] : [0.5, 0.0, 0.0];
+        const brightBlood = [0.9, 0.0, 0.0]; // Máu đỏ tươi (dùng cho móng vuốt)
+        const clawRed = [1.0, 0.05, 0.05]; // Đỏ rực cho móng vuốt
 
         // Thân dài, gầy guộc
-        push(getCube(paleRed, 0.4, 1.2, 0.2, 0, 0.6, 0));
+        push(getCube(skinCol, 0.4, 1.2, 0.2, 0, 0.6, 0));
 
         // Vết máu trên thân
-        push(getCube(blood, 0.15, 0.4, 0.05, 0.05, 0.6, 0.11)); // Vết máu loang lổ trên ngực
+        push(getCube(blood, 0.15, 0.4, 0.05, 0.05, 0.6, 0.11));
         if (isEnraged || isFinal) {
-            push(getCube(blood, 0.25, 0.6, 0.06, -0.05, 0.5, 0.11)); // Thêm vết máu lớn hơn cho Lv2, Lv3
+            push(getCube(blood, 0.25, 0.6, 0.06, -0.05, 0.5, 0.11));
         }
 
         // Thêm xương sườn nhô ra
         for (let i = 0; i < 3; i++) {
-            const ribCol = isFinal ? blood : paleRed; // Lv3 xương sườn đẫm máu
+            const ribCol = isFinal ? blood : skinCol;
             push(getCube(ribCol, 0.45, 0.05, 0.25, 0, 0.8 + i * 0.15, 0.1));
         }
 
         // Đầu biến dạng to hơn chút
-        push(getCube(paleRed, 0.4, 0.5, 0.4, 0, 1.35, 0));
+        push(getCube(skinCol, 0.4, 0.5, 0.4, 0, 1.35, 0));
 
         // Vết máu trên đầu
-        push(getCube(blood, 0.1, 0.2, 0.41, 0.15, 1.45, 0)); // Máu chảy từ đỉnh đầu xuống
+        push(getCube(blood, 0.1, 0.2, 0.41, 0.15, 1.45, 0));
         if (isFinal) {
-            push(getCube(blood, 0.42, 0.1, 0.42, 0, 1.58, 0)); // Lv3 cả đầu đẫm máu
+            push(getCube(blood, 0.42, 0.1, 0.42, 0, 1.58, 0));
         }
 
         // Mắt đỏ rực to phát sáng
@@ -595,11 +599,11 @@ function genCharMesh(color, isHorror = false, isEnraged = false, isFinal = false
 
         // Miệng máu đáng sợ
         push(getCube([0, 0, 0], 0.25, 0.15, 0.05, 0, 1.25, 0.21));
-        push(getCube(brightBlood, 0.3, 0.08, 0.05, 0, 1.18, 0.21)); // Máu tươi từ miệng
+        push(getCube(brightBlood, 0.3, 0.08, 0.05, 0, 1.18, 0.21));
 
         if (isEnraged || isFinal) {
-            // CUỒNG BẠO: 2 tay giơ thẳng lên trước (Z hướng tới người chơi)
-            const armCol = isFinal ? [0.7, 0.1, 0.1] : paleRed;
+            // CUỒNG BẠO: 2 tay giơ thẳng lên trước
+            const armCol = isFinal ? [0.6, 0.08, 0.08] : skinCol;
             push(getCube(armCol, 0.1, 0.1, 1.0, -0.3, 1.1, 0.4));
             push(getCube(armCol, 0.1, 0.1, 1.0, 0.3, 1.1, 0.4));
 
@@ -607,22 +611,31 @@ function genCharMesh(color, isHorror = false, isEnraged = false, isFinal = false
             push(getCube(blood, 0.12, 0.12, 0.6, -0.3, 1.1, 0.5));
             push(getCube(blood, 0.12, 0.12, 0.6, 0.3, 1.1, 0.5));
 
-            push(getCube(blood, 0.2, 0.8, 0.2, 0, 0.8, 0.1)); // Dính máu trên ngực
-            // Móng vuốt chĩa về trước
-            push(getCube(brightBlood, 0.05, 0.05, 0.4, -0.3, 1.1, 1.0)); // Móng vuốt đỏ rực dài hơn
-            push(getCube(brightBlood, 0.05, 0.05, 0.4, 0.3, 1.1, 1.0));
+            push(getCube(blood, 0.2, 0.8, 0.2, 0, 0.8, 0.1));
+
+            // === MÓNG VUỐT ĐỎ DÀI (3 móng mỗi tay) ===
+            push(getCube(clawRed, 0.03, 0.03, 0.55, -0.35, 1.15, 1.05));
+            push(getCube(clawRed, 0.03, 0.03, 0.55, -0.3, 1.1, 1.05));
+            push(getCube(clawRed, 0.03, 0.03, 0.55, -0.25, 1.05, 1.05));
+            push(getCube(clawRed, 0.03, 0.03, 0.55, 0.35, 1.15, 1.05));
+            push(getCube(clawRed, 0.03, 0.03, 0.55, 0.3, 1.1, 1.05));
+            push(getCube(clawRed, 0.03, 0.03, 0.55, 0.25, 1.05, 1.05));
         } else {
-            // THƯỜNG: Tay dài chạm đất
-            push(getCube(paleRed, 0.1, 1.0, 0.1, -0.3, 0.5, 0));
-            push(getCube(paleRed, 0.1, 1.0, 0.1, 0.3, 0.5, 0));
+            // THƯỜNG (Dạng 1): Tay dài chạm đất
+            push(getCube(skinCol, 0.1, 1.0, 0.1, -0.3, 0.5, 0));
+            push(getCube(skinCol, 0.1, 1.0, 0.1, 0.3, 0.5, 0));
 
             // Vết máu trên tay thường
             push(getCube(blood, 0.11, 0.5, 0.11, -0.3, 0.3, 0));
             push(getCube(blood, 0.11, 0.5, 0.11, 0.3, 0.3, 0));
 
-            // Móng vuốt chạm đất
-            push(getCube(blood, 0.05, 0.4, 0.05, -0.3, -0.2, 0));
-            push(getCube(blood, 0.05, 0.4, 0.05, 0.3, -0.2, 0));
+            // === MÓNG VUỐT ĐỎ DÀI (3 móng mỗi tay, hướng xuống đất) ===
+            push(getCube(clawRed, 0.03, 0.5, 0.03, -0.35, -0.25, 0));
+            push(getCube(clawRed, 0.03, 0.5, 0.03, -0.3, -0.25, 0));
+            push(getCube(clawRed, 0.03, 0.5, 0.03, -0.25, -0.25, 0));
+            push(getCube(clawRed, 0.03, 0.5, 0.03, 0.35, -0.25, 0));
+            push(getCube(clawRed, 0.03, 0.5, 0.03, 0.3, -0.25, 0));
+            push(getCube(clawRed, 0.03, 0.5, 0.03, 0.25, -0.25, 0));
         }
     } else {
         // --- NGƯỜI CHƠI (SỐNG SÓT) ---
@@ -694,24 +707,24 @@ function genSniperMesh() {
     const purpleCore = [0.6, 0.0, 1.0];
 
     // Thân súng Railgun (Dài, dẹp, góc cạnh)
-    push(getCube(carbon, 0.16, 0.35, 1.8, 0, 0, -0.2)); 
+    push(getCube(carbon, 0.16, 0.35, 1.8, 0, 0, -0.2));
     push(getCube(chrome, 0.18, 0.15, 1.0, 0, 0.1, -0.1)); // Ốp hông mạ crôm
-    
+
     // Lõi năng lượng plasma (Plasma Core) lộ dọc theo thân
-    push(getCube(purpleCore, 0.1, 0.15, 1.6, 0, 0, 0.2)); 
+    push(getCube(purpleCore, 0.1, 0.15, 1.6, 0, 0, 0.2));
 
     // Báng súng bắn tỉa (Sniper Stock)
-    push(getCube(carbon, 0.12, 0.3, 1.0, 0, -0.1, -1.0)); 
+    push(getCube(carbon, 0.12, 0.3, 1.0, 0, -0.1, -1.0));
     push(getCube(chrome, 0.1, 0.4, 0.2, 0, -0.15, -1.4)); // Đệm vai (Shoulder Pad)
     push(getCube(neonCyan, 0.08, 0.1, 0.3, 0, -0.1, -1.1)); // Pin năng lượng ở báng
 
     // Nòng súng Railgun (Railgun Barrels - siêu dài)
-    push(getCube(chrome, 0.08, 0.1, 2.5, 0, 0.05, 1.6)); 
+    push(getCube(chrome, 0.08, 0.1, 2.5, 0, 0.05, 1.6));
     push(getCube(carbon, 0.12, 0.12, 0.8, 0, 0.05, 2.5)); // Đầu nòng chống giật (Muzzle Brake)
     push(getCube(neonCyan, 0.1, 0.04, 2.4, 0, 0.05, 1.6)); // Dải sáng gia tốc từ trường
 
     // Chân chống (Bipod - gập lại)
-    push(getCube(chrome, 0.25, 0.05, 0.1, 0, -0.2, 1.2)); 
+    push(getCube(chrome, 0.25, 0.05, 0.1, 0, -0.2, 1.2));
     push(getCube(chrome, 0.05, 0.3, 0.1, -0.1, -0.3, 1.2)); // Chân trái
     push(getCube(chrome, 0.05, 0.3, 0.1, 0.1, -0.3, 1.2));  // Chân phải
 
@@ -989,25 +1002,25 @@ function genGrassMesh() {
 function genJumpPadMesh() {
     let V = [], N = [], C = [];
     const push = (m) => { V.push(...m.v); N.push(...m.n); C.push(...m.c); };
-    
+
     // 1. Đế kim loại tối công nghiệp (Dark industrial metal base plate)
     push(getCube([0.08, 0.08, 0.1], 1.6, 0.15, 1.6, 0, 0.075, 0));
-    
+
     // 2. Viền vàng công nghệ (Tech golden border)
     push(getCube([0.8, 0.65, 0.0], 1.5, 0.2, 1.5, 0, 0.18, 0));
-    
+
     // 3. Thảm đệm nhảy màu vàng chanh sáng (Lemon yellow center pad)
     push(getCube([1.0, 0.85, 0.0], 1.2, 0.25, 1.2, 0, 0.22, 0));
-    
+
     // 4. Lõi năng lượng cam phát sáng ở giữa (Glowing orange energy core)
     push(getCube([1.0, 0.45, 0.0], 0.4, 0.28, 0.4, 0, 0.24, 0));
-    
+
     // 5. Bốn góc định vị kim loại đen (4 black corner brackets)
     push(getCube([0.05, 0.05, 0.05], 0.3, 0.26, 0.3, 0.6, 0.20, 0.6));
     push(getCube([0.05, 0.05, 0.05], 0.3, 0.26, 0.3, -0.6, 0.20, 0.6));
     push(getCube([0.05, 0.05, 0.05], 0.3, 0.26, 0.3, 0.6, 0.20, -0.6));
     push(getCube([0.05, 0.05, 0.05], 0.3, 0.26, 0.3, -0.6, 0.20, -0.6));
-    
+
     return createMesh(V, N, C);
 }
 
@@ -1032,9 +1045,9 @@ function initAssets() {
     ASSETS.tree = genTreeMesh(); ASSETS.rock = genRockMesh(); ASSETS.house = genHouseMesh(); ASSETS.car = genCarMesh();
     ASSETS.debris = genDebrisMesh(); ASSETS.warningSign = genWarningSignMesh(); ASSETS.lampPost = genLampPostMesh();
     ASSETS.char = genCharMesh([0.35, 0.05, 0.65], false); // Người chơi: Tím Bóng Đêm dạ quang
-    ASSETS.bot = genCharMesh([0.5, 0.5, 0.5], true, false);  // Bot kinh dị
-    ASSETS.botEnraged = genCharMesh([0.5, 0.5, 0.5], true, true);  // Bot cuồng bạo
-    ASSETS.botFinal = genCharMesh([0.4, 0, 0], true, true, true);  // Bot máu me (Giai đoạn cuối)
+    ASSETS.bot = genCharMesh([0.5, 0.5, 0.5], true, false);  // Dạng 1: Xám hồng + móng vuốt đỏ
+    ASSETS.botEnraged = genCharMesh([0.5, 0.5, 0.5], true, true);  // Dạng 2: Đỏ nhạt + móng vuốt đỏ dài
+    ASSETS.botFinal = genCharMesh([0.4, 0, 0], true, true, true);  // Dạng 3: Đỏ đậm + móng vuốt đỏ dài
     ASSETS.crate = genCrateMesh([0.15, 0.12, 0.2]); // Rương Obsidian viền tím
     ASSETS.lootAmmo = genCrateMesh([0.85, 0.7, 0.05]); // Rương Đạn: Vàng dạ quang
     ASSETS.lootHP = genCrateMesh([0.05, 0.8, 0.4]); // Rương HP: Xanh ngọc dạ quang
@@ -1391,7 +1404,7 @@ function continueStartGame() {
     // Reset boss với HP đúng theo độ khó
     STATE.boss.hp = window.GAME_CONFIG.boss.hp;
     STATE.boss.maxHp = window.GAME_CONFIG.boss.hp;
-    STATE.boss.active = false; STATE.boss.dead = false;
+    STATE.boss.active = false; STATE.boss.dead = false; STATE.boss.state = 'idle'; STATE.boss.deathTimer = 0;
     STATE.bossTriggered = false;
 
     STATE.startTime = Date.now(); STATE.gameEnded = false;
@@ -1993,11 +2006,14 @@ function update(dt) {
 
     // === HỆ THỐNG THỂ LỰC (STAMINA) ===
     if (p.stamina === undefined) { p.stamina = 100; p.maxStamina = 100; p.staminaRegenDelay = 0; p.exhausted = false; }
-    
+
     // Nếu bấm chạy, đang di chuyển và không cầm súng ngắm (weaponIdx 2) và đã tỉnh dậy và KHÔNG bị kiệt sức
     if (STATE.keys['ShiftLeft'] && isMoving && p.weaponIdx !== 2 && (p.standUpTimer || 0) <= 0 && !p.exhausted) {
         if (p.stamina > 0) {
-            p.stamina -= (100 / 6.0) * dt; // 6 giây để cạn kiệt
+            // Nếu đang có powerup Tốc Độ (type 0) hoặc Siêu Cấp (type 3) → chạy được 15 giây
+            const hasSpeedPowerup = p.powerup && p.powerup.time > 0 && (p.powerup.type === 0 || p.powerup.type === 3);
+            const staminaDrainTime = hasSpeedPowerup ? 15.0 : 8.0; // 15s khi có powerup, 8s bình thường
+            p.stamina -= (100 / staminaDrainTime) * dt;
             p.staminaRegenDelay = 0.5; // Chờ 0.5s sau khi dừng chạy mới hồi
             if (p.stamina <= 0) {
                 p.stamina = 0;
@@ -2026,7 +2042,7 @@ function update(dt) {
             }
         }
     }
-    
+
     // Cập nhật giao diện UI thanh thể lực
     const staminaFill = document.getElementById('stamina-fill');
     if (staminaFill) {
@@ -2041,7 +2057,7 @@ function update(dt) {
     }
 
     if (STATE.keys['ShiftLeft'] && p.stamina > 0) speedMult *= window.GAME_CONFIG.player.sprintMultiplier;
-    
+
     // GIẢM TỐC ĐỘ: Đi bộ 8, Chạy nhanh 12 (8 * 1.5)
     const moveSpeed = (p.weaponIdx === 2 ? window.GAME_CONFIG.player.sniperSpeed : window.GAME_CONFIG.player.walkSpeed) * speedMult;
 
@@ -2619,6 +2635,12 @@ function update(dt) {
                 p.powerup = { type: puType, time: 15 };
                 pickedName = puType === 0 ? "⚡ TĂNG TỐC!" : "🔥 X2 SÁT THƯƠNG!";
             }
+
+            // Khi nhặt được powerup Tốc Độ hoặc Siêu Cấp → Hồi đầy thể lực ngay lập tức
+            if (p.powerup.type === 0 || p.powerup.type === 3) {
+                p.stamina = p.maxStamina || 100;
+                p.exhausted = false;
+            }
         }
 
         const pMsg = document.getElementById('pickup-msg');
@@ -2689,6 +2711,36 @@ function update(dt) {
     if (STATE.boss && STATE.boss.active) {
 
         const b = STATE.boss;
+        if (b.state === 'dying') {
+            b.deathTimer -= dt;
+            // Giai đoạn 1: Quỳ gối (3.5s -> 2.0s)
+            if (b.deathTimer > 2.0) {
+                b.bodyY += (-8.0 - b.bodyY) * 4 * dt;
+                b.bodyRot += (0.8 - b.bodyRot) * 4 * dt;
+                b.armLift += (-1.5 - b.armLift) * 4 * dt;
+                STATE.shake = Math.max(STATE.shake, 0.5);
+                if (Math.random() < 0.2) {
+                    spawnParticles(b.pos, 5, [0.3, 0.25, 0.2], 1.2, 'smoke');
+                }
+            }
+            // Giai đoạn 2: Quá tải giật mạnh & tàn lửa (2.0s -> 0.0s)
+            else if (b.deathTimer > 0.0) {
+                b.bodyRot = 0.8 + (Math.random() - 0.5) * 0.15;
+                b.bodyY = -8.0 + (Math.random() - 0.5) * 0.2;
+                b.armLift = -1.5 + (Math.random() - 0.5) * 0.2;
+                STATE.shake = Math.max(STATE.shake, 1.2);
+                if (Math.random() < 0.6) {
+                    const color = Math.random() > 0.5 ? [1.0, 0.05, 0.05] : [1.0, 0.5, 0.0];
+                    spawnParticles(V3.add(b.pos, V3.create(0, 10, 0)), 4, color, 2.5, 'fire');
+                }
+            }
+            // Giai đoạn 3: Thực sự kết liễu
+            else {
+                finishKillBoss();
+            }
+            return;
+        }
+
         const dist = V3.dist(b.pos, p.pos);
         b.skillCD -= dt;
 
@@ -3087,8 +3139,21 @@ function update(dt) {
 function killBoss() {
     const combatSound1 = document.getElementById('combat-theme1-sound');
     if (combatSound1) combatSound1.pause();
-    const combatSound2 = document.getElementById('combat-theme2-sound');
-    if (combatSound2) combatSound2.pause();
+    const combatSound3 = document.getElementById('combat-theme3-sound');
+    if (combatSound3) combatSound3.pause();
+    const b = STATE.boss;
+    if (!b || b.dead || b.state === 'dying') return;
+
+    b.state = 'dying';
+    b.deathTimer = 3.5;
+    STATE.inputLocked = true;
+    STATE.keys = {}; // Stop player movement immediately
+    setTimeout(() => { STATE.inputLocked = false; }, 1500);
+
+    showGlobalAnnouncement("HAKARI ĐÃ BỊ TRIỆT TIÊU!", 5000);
+}
+
+function finishKillBoss() {
     const b = STATE.boss;
     if (!b || b.dead) return;
 
@@ -3097,7 +3162,6 @@ function killBoss() {
     STATE.player.kills += 1;
     // Thông báo cho QuestManager để kill quest được tính khi hạ Boss
     if (window.QuestManager) window.QuestManager.onEvent('kill', 1);
-    showGlobalAnnouncement("HAKARI ĐÃ BỊ TRIỆT TIÊU!", 5000);
 
     // DỌN DẸP MESH KHI BOSS CHẾT
     if (b.indicatorMesh) { deleteMesh(b.indicatorMesh); b.indicatorMesh = null; }
@@ -3121,7 +3185,7 @@ function killBoss() {
     showGlobalAnnouncement("🔑 KẺ CANH CÁNH CỬA ĐÃ BỊ HẠ! HÃY NHẶT CHÌA KHÓA ĐỎ!", 6000);
 
     // Hiệu ứng nổ lớn
-    STATE.shake = 20.0;
+    STATE.shake = 3.5;
     spawnParticles(b.pos, 500, [1, 0, 0], 5.0);
 }
 
@@ -3289,8 +3353,8 @@ function spawnParticles(pos, count, color, speedMult = 1.0, type = 'fire') {
 function endGame(win) {
     const combatSound1 = document.getElementById('combat-theme1-sound');
     if (combatSound1) combatSound1.pause();
-    const combatSound2 = document.getElementById('combat-theme2-sound');
-    if (combatSound2) combatSound2.pause();
+    const combatSound3 = document.getElementById('combat-theme3-sound');
+    if (combatSound3) combatSound3.pause();
     if (STATE.gameEnded) return;
     STATE.gameEnded = true;
 
@@ -3316,8 +3380,8 @@ function endGame(win) {
 
             // PHÁT NHẠC NỀN COMBAT 1 HÀO HÙNG CHO CẢ 2 ENDING
             const combatSound1 = document.getElementById('combat-theme1-sound');
-            const combatSound2 = document.getElementById('combat-theme2-sound');
-            if (combatSound2) combatSound2.pause();
+            const combatSound3 = document.getElementById('combat-theme3-sound');
+            if (combatSound3) combatSound3.pause();
             if (combatSound1) {
                 combatSound1.volume = 0.55;
                 combatSound1.currentTime = 0;
@@ -3965,7 +4029,7 @@ function draw() {
         bgCol = [0.4 + skyPulse, 0.1, 0.1];         // Tăng mạnh độ sáng bầu trời
         // CSS filter: Trả lại độ tối u ám cũ
         if (!isMobile) document.body.style.filter = intensity > 0.4 ? `contrast(${140 + intensity * 60}%) brightness(${0.7 - intensity * 0.25})` : 'brightness(0.7) contrast(1.2)';
-        if (!isMobile && intensity > 0.6) STATE.shake += intensity * 0.2;
+        if (!isMobile && intensity > 0.6) STATE.shake += intensity * 0.02;
     } else {
         // GIAI ĐOẠN CHIỀU TÀ (Trả lại độ tối u ám)
         fogCol = [0.6, 0.3, 0.2];
@@ -4176,7 +4240,7 @@ function draw() {
         gl.uniform3f(locs.emitColor, 0, 0, 0);
 
         // 2. Vẽ MŨI TÊN KHỔNG LỒ CHỈ XUỐNG CHÌA KHÓA (Tự quay quanh trục Y và chúi đầu thẳng xuống đất)
-        let arrowMatrix = M4.translation(STATE.finalPaper.pos.x, STATE.finalPaper.pos.y + bob + 3.0, STATE.finalPaper.pos.z);
+        let arrowMatrix = M4.translation(STATE.finalPaper.pos.x, STATE.finalPaper.pos.y + bob + 6.5, STATE.finalPaper.pos.z);
         arrowMatrix = M4.multiply(arrowMatrix, M4.rotationY(Date.now() / 200));  // Xoay tròn xung quanh trục đứng Y
         arrowMatrix = M4.multiply(arrowMatrix, M4.rotationX(-Math.PI / 2));     // Quay 90 độ X hướng đầu thẳng xuống đất
         arrowMatrix = M4.multiply(arrowMatrix, M4.scaling(2.5, 2.5, 2.5));       // Kích thước khổng lồ 2.5x cực kỳ nổi bật
@@ -4336,29 +4400,53 @@ function draw() {
         const dx = p.pos.x - b.pos.x, dz = p.pos.z - b.pos.z;
         const ang = Math.atan2(dx, dz);
 
+        let bossEmitCol = [0.45, 0.1, 0.1];
+        if (b.state === 'dying') {
+            if (b.deathTimer > 2.0) {
+                bossEmitCol = [0.45, 0.1, 0.1];
+            } else {
+                const intensity = (2.0 - b.deathTimer) / 2.0; // 0 to 1
+                const flash = Math.abs(Math.sin(performance.now() * 0.02)) * 0.5 + 0.5;
+                const r = 0.45 + intensity * 4.0 * flash;
+                const g = 0.1 + intensity * 0.8 * flash;
+                const bVal = 0.1 + intensity * 0.8 * flash;
+                bossEmitCol = [r, g, bVal];
+            }
+        }
+
         // Boss Body (Static for spectators)
         let mBody = M4.translation(b.pos.x, b.pos.y + b.bodyY, b.pos.z);
         mBody = M4.multiply(mBody, M4.rotationY(b.rotY || ang));
         mBody = M4.multiply(mBody, M4.rotationX(b.bodyRot));
 
-        // 1. Vẽ Outline Viền Trắng xuyên vật thể (X-Ray/Wallhack) cho Boss Body trước
+        // === STENCIL: Vẽ Boss Body trước, đánh dấu stencil ===
+        gl.enable(gl.STENCIL_TEST);
+        gl.clear(gl.STENCIL_BUFFER_BIT);
+        gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.stencilMask(0xFF);
+
+        // 1. Vẽ Boss Body bình thường (ghi stencil = 1)
+        gl.uniform3f(locs.emitColor, bossEmitCol[0], bossEmitCol[1], bossEmitCol[2]);
+        gl.uniformMatrix4fv(locs.model, false, mBody);
+        gl.bindVertexArray(ASSETS.bossBody.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossBody.count);
+        gl.uniform3f(locs.emitColor, 0, 0, 0);
+
+        // 2. Vẽ Outline chỉ ở nơi stencil != 1 (không xuyên qua chính thân Boss)
+        gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
+        gl.stencilMask(0x00);
         gl.disable(gl.DEPTH_TEST);
         gl.cullFace(gl.FRONT);
-        gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0); // Sáng trắng dạ quang cực đại
-        let mBodyOutline = M4.multiply(mBody, M4.scaling(1.05, 1.05, 1.05)); // Phóng to nhẹ khung thân
+        gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0);
+        let mBodyOutline = M4.multiply(mBody, M4.scaling(1.05, 1.05, 1.05));
         gl.uniformMatrix4fv(locs.model, false, mBodyOutline);
         gl.bindVertexArray(ASSETS.bossBody.vao);
         gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossBody.count);
         gl.cullFace(gl.BACK);
         gl.enable(gl.DEPTH_TEST);
-        gl.uniform3f(locs.emitColor, 0, 0, 0); // Reset emit
-
-        // 2. Vẽ Boss Body bình thường (Tăng nhẹ độ sáng phát quang tự nhiên)
-        gl.uniform3f(locs.emitColor, 0.45, 0.1, 0.1);
-        gl.uniformMatrix4fv(locs.model, false, mBody);
-        gl.bindVertexArray(ASSETS.bossBody.vao);
-        gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossBody.count);
-        gl.uniform3f(locs.emitColor, 0, 0, 0); // Reset emit
+        gl.uniform3f(locs.emitColor, 0, 0, 0);
+        gl.disable(gl.STENCIL_TEST);
 
         // Hiệu ứng tụ năng lượng ở ngực (Chiêu 2)
         if (b.state === 'shoot_prepare' || b.state === 'shooting') {
@@ -4411,27 +4499,37 @@ function draw() {
             mArm = M4.multiply(mArm, M4.translation(side * 3.5, 16, forward)); // Gắn chết vào khớp vai (có hỗ trợ vươn tay forward)
             mArm = M4.multiply(mArm, M4.rotationX(lift)); // Cử động cánh tay từ khớp vai
             mArm = M4.multiply(mArm, M4.scaling(armScale, armScale, armScale)); // Phóng to cánh tay từ khớp
-            // 1. Vẽ Outline Viền Trắng xuyên vật thể (X-Ray/Wallhack) cho Boss Arm trước
+            // === STENCIL: Vẽ Arm trước, đánh dấu stencil ===
+            gl.enable(gl.STENCIL_TEST);
+            gl.clear(gl.STENCIL_BUFFER_BIT);
+            gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+            gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+            gl.stencilMask(0xFF);
+
+            // 1. Vẽ Boss Arm bình thường (ghi stencil = 1)
+            if (armColor) {
+                gl.uniform3f(locs.emitColor, armColor[0], armColor[1], armColor[2]);
+            } else {
+                gl.uniform3f(locs.emitColor, bossEmitCol[0], bossEmitCol[1], bossEmitCol[2]);
+            }
+            gl.uniformMatrix4fv(locs.model, false, mArm);
+            gl.bindVertexArray(ASSETS.bossArm.vao); gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossArm.count);
+            gl.uniform3f(locs.emitColor, 0, 0, 0);
+
+            // 2. Vẽ Outline chỉ ở nơi stencil != 1 (không xuyên qua chính thân Arm)
+            gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
+            gl.stencilMask(0x00);
             gl.disable(gl.DEPTH_TEST);
             gl.cullFace(gl.FRONT);
-            gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0); // Sáng trắng dạ quang cực đại
-            let mArmOutline = M4.multiply(mArm, M4.scaling(1.08, 1.08, 1.08)); // Phóng to nhẹ khung cánh tay
+            gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0);
+            let mArmOutline = M4.multiply(mArm, M4.scaling(1.08, 1.08, 1.08));
             gl.uniformMatrix4fv(locs.model, false, mArmOutline);
             gl.bindVertexArray(ASSETS.bossArm.vao);
             gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossArm.count);
             gl.cullFace(gl.BACK);
             gl.enable(gl.DEPTH_TEST);
-            gl.uniform3f(locs.emitColor, 0, 0, 0); // Reset emit
-
-            // 2. Vẽ Boss Arm bình thường (Tăng nhẹ độ sáng phát quang tự nhiên)
-            if (armColor) {
-                gl.uniform3f(locs.emitColor, armColor[0], armColor[1], armColor[2]);
-            } else {
-                gl.uniform3f(locs.emitColor, 0.45, 0.1, 0.1);
-            }
-            gl.uniformMatrix4fv(locs.model, false, mArm);
-            gl.bindVertexArray(ASSETS.bossArm.vao); gl.drawArrays(gl.TRIANGLES, 0, ASSETS.bossArm.count);
-            gl.uniform3f(locs.emitColor, 0, 0, 0); // Reset emit
+            gl.uniform3f(locs.emitColor, 0, 0, 0);
+            gl.disable(gl.STENCIL_TEST);
         };
         drawArm(-1); drawArm(1);
 
@@ -4501,24 +4599,33 @@ function draw() {
             scale = 2.0;
         } else if (isLv2) {
             mesh = ASSETS.botEnraged;
-            scale = 1.0;
+            scale = 1.15; // Chỉ cao hơn dạng 1 chút thôi
         }
 
-        // 1. Vẽ Outline Viền Trắng xuyên vật thể (X-Ray/Wallhack) trước
+        // === STENCIL: Vẽ Bot trước, đánh dấu stencil ===
+        gl.enable(gl.STENCIL_TEST);
+        gl.clear(gl.STENCIL_BUFFER_BIT);
+        gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.stencilMask(0xFF);
+
+        // 1. Vẽ Bot bình thường trước (ghi stencil = 1)
+        let emitVal = isLv3 ? [0.85, 0.2, 0.2] : (isLv2 ? [0.5, 0.25, 0.25] : [0.4, 0.1, 0.1]);
+        gl.uniform3f(locs.emitColor, emitVal[0], emitVal[1], emitVal[2]);
+        drawMeshActual(mesh, drawPos, scale, ang);
+        gl.uniform3f(locs.emitColor, 0, 0, 0);
+
+        // 2. Vẽ Outline chỉ ở nơi stencil != 1 (xuyên vật cản nhưng KHÔNG xuyên chính thân Bot)
+        gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
+        gl.stencilMask(0x00);
         gl.disable(gl.DEPTH_TEST);
         gl.cullFace(gl.FRONT);
-        gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0); // Sáng trắng dạ quang cực đại (xuyên thấu mọi vật cản)
+        gl.uniform3f(locs.emitColor, 5.0, 5.0, 5.0);
         drawMeshActual(mesh, drawPos, scale * 1.08, ang);
         gl.cullFace(gl.BACK);
         gl.enable(gl.DEPTH_TEST);
-
-        // 2. Vẽ Bot bình thường (Tăng độ sáng dạ quang phát quang tự nhiên để ko bị tối khi không bị che)
-        let emitVal = isLv3 ? [0.85, 0.2, 0.2] : (isLv2 ? [0.6, 0.15, 0.15] : [0.4, 0.1, 0.1]);
-        gl.uniform3f(locs.emitColor, emitVal[0], emitVal[1], emitVal[2]);
-
-        drawMeshActual(mesh, drawPos, scale, ang);
-
-        gl.uniform3f(locs.emitColor, 0, 0, 0); // Reset emit
+        gl.uniform3f(locs.emitColor, 0, 0, 0);
+        gl.disable(gl.STENCIL_TEST);
 
         if (b.isEvolvingLv3) gl.uniform3f(locs.fogColor, fogCol[0], fogCol[1], fogCol[2]);
     });
@@ -5224,10 +5331,10 @@ function triggerBossEvent() {
 
     const combatSound1 = document.getElementById('combat-theme1-sound');
     if (combatSound1) combatSound1.pause();
-    const combatSound2 = document.getElementById('combat-theme2-sound');
-    if (combatSound2) {
-        combatSound2.currentTime = 0;
-        combatSound2.play().catch(e => console.log(e));
+    const combatSound3 = document.getElementById('combat-theme3-sound');
+    if (combatSound3) {
+        combatSound3.currentTime = 0;
+        combatSound3.play().catch(e => console.log(e));
     }
 
     STATE.inputLocked = true;
@@ -5264,7 +5371,8 @@ function triggerBossEvent() {
             pillarSpots: [],
             dead: false,
             skillIndex: 0,
-            skillSequence: null
+            skillSequence: null,
+            deathTimer: 0
         };
         STATE.boss.pos.y = getHeight(STATE.boss.pos.x, STATE.boss.pos.z);
 
@@ -5712,7 +5820,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     const dy = t.clientY - lastShootPos.y;
                     lastShootPos.x = t.clientX;
                     lastShootPos.y = t.clientY;
-                    
+
                     // Deadzone: Ignore finger wobbles less than 3px to avoid camera jump when clicking
                     if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
 

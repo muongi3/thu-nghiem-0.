@@ -148,7 +148,7 @@ window.DIFFICULTY_PRESETS = {
         label: '😊 DỄ', color: '#00e676',
         questCount: 3, // DỄ: Chỉ cần 3 nhiệm vụ là thắng cuộc
         botHpMult: 0.7, botDmgMult: 0.6, botSpeedMult: 0.75,
-        enrageLv2Pct: 0.30, lv3Count: 3,
+        enrageLv2Pct: 0.85, lv3Count: 3,
         bossHpMult: 0.6, bossDmgMult: 0.5, bossSkillCdMult: 1.5, bossSpeedMult: 0.7,
         bossSkillPreTimeMult: 1.5, // Boss "rặn" chiêu cực chậm (Chậm)
         bossSkillActiveTimeMult: 1.2, // Hiệu ứng chiêu kéo dài/kết thúc chậm
@@ -162,7 +162,7 @@ window.DIFFICULTY_PRESETS = {
         label: '⚔️ THƯỜNG', color: '#ffcc00',
         questCount: 5, // THƯỜNG: 5 nhiệm vụ
         botHpMult: 1.0, botDmgMult: 1.0, botSpeedMult: 1.0,
-        enrageLv2Pct: 0.40, lv3Count: 5,
+        enrageLv2Pct: 0.85, lv3Count: 5,
         bossHpMult: 1.0, bossDmgMult: 1.0, bossSkillCdMult: 1.0, bossSpeedMult: 1.0,
         bossSkillPreTimeMult: 1.0, // Chuẩn (Standard)
         bossSkillActiveTimeMult: 1.0,
@@ -176,7 +176,7 @@ window.DIFFICULTY_PRESETS = {
         label: '🔥 KHÓ', color: '#ff6600',
         questCount: 7, // KHÓ: 7 nhiệm vụ
         botHpMult: 1.4, botDmgMult: 1.5, botSpeedMult: 1.2,
-        enrageLv2Pct: 0.55, lv3Count: 7,
+        enrageLv2Pct: 0.85, lv3Count: 7,
         bossHpMult: 1.5, bossDmgMult: 1.1, bossSkillCdMult: 0.75, bossSpeedMult: 1.3,
         bossSkillPreTimeMult: 0.8, // Boss "rặn" chiêu nhanh (Hơi nhanh tý)
         bossSkillActiveTimeMult: 0.85,
@@ -190,7 +190,7 @@ window.DIFFICULTY_PRESETS = {
         label: '💀 CỰC KHÓ', color: '#ff0033',
         questCount: 9, // CỰC KHÓ: 9 nhiệm vụ để mở khóa sự thật tối thượng
         botHpMult: 2.15, botDmgMult: 2.2, botSpeedMult: 1.4,
-        enrageLv2Pct: 0.70, lv3Count: 10,
+        enrageLv2Pct: 0.85, lv3Count: 10,
         bossHpMult: 2.2, bossDmgMult: 1.2, bossSkillCdMult: 0.55, bossSpeedMult: 1.6,
         bossSkillPreTimeMult: 0.65, // Boss tung chiêu cực chớp nhoáng (Sít)
         bossSkillActiveTimeMult: 0.7,
